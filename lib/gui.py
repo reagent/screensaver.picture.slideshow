@@ -372,7 +372,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # randomize
         if self.slideshow_random:
             random.seed()
-            random.shuffle(self.items, random.random)
+            random.shuffle(self.items)
 
     def _get_offset(self):
         try:
