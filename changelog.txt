@@ -1,3 +1,12 @@
+v7.0.2
+- fix encoding
+
+v7.0.1
+- add support for image types provided by imagedecoder addons
+
+v7.0.0
+- update for kodi nexus
+
 v6.4.2
 - revert some changes due to python/json problem with windows paths
 - make recursive slideshow optional
