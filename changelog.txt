@@ -1,3 +1,6 @@
+v7.0.3
+- bump for release
+
 v7.0.2
 - fix encoding
 
