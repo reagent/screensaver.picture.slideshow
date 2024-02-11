@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: XBMC Addons\n"
 "Report-Msgid-Bugs-To: translations@kodi.tv\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2024-01-08 08:13+0000\n"
+"PO-Revision-Date: 2024-02-11 08:13+0000\n"
 "Last-Translator: Alexey <signfinder@gmail.com>\n"
 "Language-Team: Russian <https://kodi.weblate.cloud/projects/kodi-add-ons-look-and-feel/screensaver-picture-slideshow/ru_ru/>\n"
 "Language: ru_ru\n"
@@ -95,12 +95,12 @@ msgstr "Показывать изображения в случайном пор
 
 msgctxt "#30017"
 msgid "Use full path"
-msgstr ""
+msgstr "Использовать полный путь"
 
 # empty string with id 30017
 msgctxt "#30018"
 msgid "Use folder- and filename"
-msgstr ""
+msgstr "Использовать имена папок и файлов"
 
 # empty strings from id 30019 to 30020
 msgctxt "#30021"
@@ -125,13 +125,13 @@ msgstr "Дополнительно"
 
 msgctxt "#30026"
 msgid "Resume slideshow from last position"
-msgstr ""
+msgstr "Возобновить слайд-шоу с последней позиции"
 
 # empty strings from id 30027 to 30028
 msgctxt "#30029"
 msgid "Display background picture"
-msgstr ""
+msgstr "Отображение фонового рисунка"
 
 msgctxt "#30030"
 msgid "Use vignette overlay"
-msgstr ""
+msgstr "Использовать наложение виньетки"
