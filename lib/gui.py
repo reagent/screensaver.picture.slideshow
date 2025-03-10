@@ -245,7 +245,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                                         iptc_de = True
                                     subjmatch = re.search(r'<dc:subject.*?rdf:Bag.*?>(.*?)</rdf:Bag', xmpdata.group(1), flags=re.DOTALL)
                                     if subjmatch and not iptc_ke:
-                                        keywords = ', '.join(subjmatch.group(1).encode('cp437').decode('utf-8').split()).replace('<rdf:li>', '').replace('</rdf:li>', '')
+                                        rawdata = subjmatch.group(1).encode('cp437').decode('utf-8').replace('<rdf:li>', '').replace('</rdf:li>', '').strip().split('\n')
+                                        keywords = ', '.join(x.strip() for x in rawdata)
                                         iptc_ke = True
                             except:
                                 pass
