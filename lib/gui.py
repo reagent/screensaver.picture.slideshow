@@ -233,21 +233,27 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                             try:
                                 xmpfile = xbmcvfs.File(img[0])
                                 data = xmpfile.readBytes().decode('cp437')
-                                xmpdata = re.search(r'<x:xmpmeta.*?>(.*?)</x:xmpmeta', data, flags=re.DOTALL)
-                                if xmpdata:
-                                    titlematch = re.search(r'<dc:title.*?rdf:Alt.*?rdf:li.*?>(.*?)<', xmpdata.group(1), flags=re.DOTALL)
-                                    if titlematch and not iptc_ti:
-                                        title = titlematch.group(1).encode('cp437').decode('utf-8')
-                                        iptc_ti = True
-                                    descmatch = re.search(r'<dc:description.*?rdf:Alt.*?rdf:li.*?>(.*?)<', xmpdata.group(1), flags=re.DOTALL)
-                                    if descmatch and not iptc_de:
-                                        description = descmatch.group(1).encode('cp437').decode('utf-8')
-                                        iptc_de = True
-                                    subjdata = re.findall(r'<rdf:li>(.*?)</rdf:li>', data, flags=re.DOTALL)
-                                    subjmatch = list(set(subjdata)) # remove duplicates
-                                    if subjmatch and not iptc_ke:
-                                        keywords = ', '.join(x.encode('cp437').decode('utf-8') for x in subjmatch)
-                                        iptc_ke = True
+                                xmpmeta = re.findall(r'<x:xmpmeta.*?>(.*?)</x:xmpmeta', data, flags=re.DOTALL)
+                                if xmpmeta:
+                                    for xmpdata in xmpmeta:
+                                        titlematch = re.search(r'<dc:title.*?rdf:Alt.*?rdf:li.*?>(.*?)<', xmpdata, flags=re.DOTALL)
+                                        if titlematch and not iptc_ti:
+                                            title = titlematch.group(1).encode('cp437').decode('utf-8')
+                                            iptc_ti = True
+                                            break
+                                    for xmpdata in xmpmeta:
+                                        descmatch = re.search(r'<dc:description.*?rdf:Alt.*?rdf:li.*?>(.*?)<', xmpdata, flags=re.DOTALL)
+                                        if descmatch and not iptc_de:
+                                            description = descmatch.group(1).encode('cp437').decode('utf-8')
+                                            iptc_de = True
+                                            break
+                                    for xmpdata in xmpmeta:
+                                        subjdata = re.findall(r'<rdf:li>(.*?)</rdf:li>', xmpdata, flags=re.DOTALL)
+                                        subjmatch = list(set(subjdata)) # remove duplicates
+                                        if subjmatch and not iptc_ke:
+                                            keywords = ', '.join(x.encode('cp437').decode('utf-8') for x in subjmatch)
+                                            iptc_ke = True
+                                            break
                             except:
                                 pass
                             xmpfile.close()
