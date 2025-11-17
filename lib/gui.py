@@ -210,9 +210,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                         exiffile.close()
                     # get iptc title, description and keywords
                     if self.slideshow_iptc:
-                        iptcfile = BinaryFile(img[0])
                         try:
-                            iptc = IPTCInfo(iptcfile)
+                            iptc = IPTCInfo(img[0], force=True)
                             if iptc['object name']:
                                 title = bytes(iptc['object name']).decode('utf-8')
                                 iptc_ti = True
@@ -227,7 +226,6 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                                 iptc_ke = True
                         except:
                             pass
-                        iptcfile.close()
                         # get xmp title, description and subject
                         if (not iptc_ti or not iptc_de or not iptc_ke):
                             try:
