@@ -26,7 +26,7 @@ ADDON = xbmcaddon.Addon()
 SKINDIR = xbmc.getSkinDir()
 
 # images types that can contain exif/iptc data
-EXIF_TYPES  = ('.jpg', '.jpeg', '.tif', '.tiff')
+EXIF_TYPES  = ('.jpg', '.jpeg', '.tif', '.tiff', '.heic', '.heif')
 
 # random effect list to choose from
 EFFECTLIST = ["('conditional', 'effect=zoom start=100 end=400 center=auto time=%i condition=true'),",
