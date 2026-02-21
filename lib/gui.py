@@ -201,7 +201,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                                     try:
                                         # localize the date format
                                         date = datetime[:10].split(':')
-                                        timepart = datetime[10:]
+                                        timepart = datetime[10:].strip()
                                         if DATEFORMAT[1] == 'm':
                                             datetime = date[1] + '-' + date[2] + '-' + date[0] + ' ' + timepart
                                         elif DATEFORMAT[1] == 'd':
