@@ -16,6 +16,7 @@
 import copy
 import random
 import threading
+import time
 from xml.dom.minidom import parse
 import exifread
 from iptcinfo3 import IPTCInfo
@@ -85,6 +86,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.stop = False
         self.startup = True
         self.offset = 0
+        self.start_time = None  # will be set when slideshow starts
 
     def _get_settings(self):
         # read addon settings
@@ -105,6 +107,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_iptc = ADDON.getSettingBool('iptc')
         self.slideshow_music = ADDON.getSettingBool('music')
         self.slideshow_bg = ADDON.getSettingBool('background')
+        self.stop_after_enabled = ADDON.getSettingBool('stop_after_enabled')
+        self.stop_after_minutes = ADDON.getSettingInt('stop_after_minutes')
         # select which image controls from the xml we are going to use
         if self.slideshow_scale:
             self.image1 = self.getControl(3)
@@ -143,6 +147,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         # we need to start the update thread after the deep copy of self.items finishes
         thread = img_update(data=self._get_items)
         thread.start()
+        # record when the slideshow started for timeout purposes
+        self.start_time = time.time()
         # start with image 1
         cur_img = self.image1
         order = [1,2]
@@ -195,13 +201,13 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                                     try:
                                         # localize the date format
                                         date = datetime[:10].split(':')
-                                        time = datetime[10:]
+                                        timepart = datetime[10:]
                                         if DATEFORMAT[1] == 'm':
-                                            datetime = date[1] + '-' + date[2] + '-' + date[0] + '  ' + time
+                                            datetime = date[1] + '-' + date[2] + '-' + date[0] + ' ' + timepart
                                         elif DATEFORMAT[1] == 'd':
-                                            datetime = date[2] + '-' + date[1] + '-' + date[0] + '  ' + time
+                                            datetime = date[2] + '-' + date[1] + '-' + date[0] + ' ' + timepart
                                         else:
-                                            datetime = date[0] + '-' + date[1] + '-' + date[2] + '  ' + time
+                                            datetime = date[0] + '-' + date[1] + '-' + date[2] + ' ' + timepart
                                     except:
                                         pass
                                     exif = True
@@ -333,6 +339,13 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 while (not self.Monitor.abortRequested()) and (not self.stop) and count > 0:
                     count -= 1
                     xbmc.sleep(1000)
+                # check stop_after timeout after image display
+                if self.stop_after_enabled and self.start_time is not None:
+                    elapsed_minutes = (time.time() - self.start_time) / 60.0
+                    if elapsed_minutes >= self.stop_after_minutes:
+                        log('stop_after timeout reached (%i minutes), stopping slideshow' % self.stop_after_minutes)
+                        self._exit()
+                        return
                 # break out of the for loop if onScreensaverDeactivated is called
                 if  self.stop or self.Monitor.abortRequested():
                     break
