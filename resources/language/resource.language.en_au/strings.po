@@ -142,3 +142,7 @@ msgstr "Stop slideshow after a set time"
 msgctxt "#30032"
 msgid "Stop after (minutes)"
 msgstr "Stop after (minutes)"
+
+msgctxt "#30033"
+msgid "Remember shuffle between sessions"
+msgstr "Remember shuffle between sessions"
