@@ -93,11 +93,6 @@
 				<setting help="" id="resume" label="30026" type="boolean">
 					<level>0</level>
 					<default>false</default>
-					<dependencies>
-						<dependency type="enable">
-							<condition operator="is" setting="random">false</condition>
-						</dependency>
-					</dependencies>
 					<control type="toggle"/>
 				</setting>
 			</group>

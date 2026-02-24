@@ -14,7 +14,6 @@
 # *  http://www.gnu.org/copyleft/gpl.html
 
 import copy
-import random
 import threading
 from xml.dom.minidom import parse
 import exifread
@@ -69,7 +68,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.adj_time = int(101000 * speedup)
         # get the images
         self._get_items()
-        if self.slideshow_type == 2 and not self.slideshow_random and self.slideshow_resume:
+        if self.slideshow_type == 2 and self.slideshow_resume:
             self._get_offset()
         if self.items:
             # hide startup splash
@@ -345,12 +344,12 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         log('slideshow type: %i' % self.slideshow_type)
 	    # check if we have an image folder, else fallback to video fanart
         if self.slideshow_type == 2:
-            hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) # check if path has changed, so we can create a new cache at startup
+            hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random) # check if path, or settings have changed, so we can create a new cache at startup
             log('image path: %s' % self.slideshow_path)
             log('update: %s' % update)
             if (not xbmcvfs.exists(CACHEFILE % hexfile)) or update: # create a new cache if no cache exits or during the background scan
                 log('create cache')
-                create_cache(self.slideshow_path, hexfile)
+                create_cache(self.slideshow_path, hexfile, self.slideshow_random)
             self.items = self._read_cache(hexfile)
             log('items: %s' % len(self.items))
             if not self.items:
@@ -374,10 +373,10 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     for item in json_response['result'][method[1]]:
                         if 'fanart' in item['art']:
                             self.items.append([item['art']['fanart'], item['label']])
-        # randomize
-        if self.slideshow_random:
-            random.seed()
-            random.shuffle(self.items)
+            # randomize
+            if self.slideshow_random:
+                random.seed()
+                random.shuffle(self.items)
 
     def _get_offset(self):
         try:
@@ -482,7 +481,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Splash')
         self._clear_prop('Background')
         # save the current position  to file
-        if self.slideshow_type == 2 and not self.slideshow_random and self.slideshow_resume:
+        if self.slideshow_type == 2 and self.slideshow_resume:
             self._save_offset()
         self.close()
 

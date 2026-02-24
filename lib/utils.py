@@ -1,6 +1,7 @@
 import hashlib
 import os
 import json
+import random
 import re
 import sys
 import urllib
@@ -30,7 +31,7 @@ def log(txt):
 def checksum(path):
     return hashlib.md5(path).hexdigest()
 
-def create_cache(path, hexfile):
+def create_cache(path, hexfile, randomize):
     images = walk(path)
     if not xbmcvfs.exists(CACHEFOLDER):
         xbmcvfs.mkdir(CACHEFOLDER)
@@ -40,6 +41,10 @@ def create_cache(path, hexfile):
         if item != 'settings.xml':
             xbmcvfs.delete(os.path.join(CACHEFOLDER,item))
     if images:
+        # randomize
+        if randomize:
+            random.seed()
+            random.shuffle(images)
         # create cache file
         try:
             cache = xbmcvfs.File(CACHEFILE % hexfile, 'w')
