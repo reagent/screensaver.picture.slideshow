@@ -135,3 +135,11 @@ msgstr "Afișează imaginea de fundal"
 msgctxt "#30030"
 msgid "Use vignette overlay"
 msgstr "Folosește acoperire vinietă"
+
+msgctxt "#30031"
+msgid "Stop slideshow after a set time"
+msgstr ""
+
+msgctxt "#30032"
+msgid "Stop after (minutes)"
+msgstr ""

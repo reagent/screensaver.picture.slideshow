@@ -14,8 +14,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n != 1 && n != 2 && n != 3 && "
-"(n % 10 == 4 || n % 10 == 6 || n % 10 == 9);\n"
+"Plural-Forms: nplurals=2; plural=n != 1 && n != 2 && n != 3 && (n % 10 == 4 || n % 10 == 6 || n % 10 == 9);\n"
 
 msgctxt "Addon Summary"
 msgid "Screensaver that displays an image slideshow"
@@ -133,4 +132,12 @@ msgstr ""
 
 msgctxt "#30030"
 msgid "Use vignette overlay"
+msgstr ""
+
+msgctxt "#30031"
+msgid "Stop slideshow after a set time"
+msgstr ""
+
+msgctxt "#30032"
+msgid "Stop after (minutes)"
 msgstr ""

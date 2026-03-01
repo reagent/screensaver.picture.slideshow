@@ -135,3 +135,11 @@ msgstr "Näytä taustakuva"
 msgctxt "#30030"
 msgid "Use vignette overlay"
 msgstr "Käytä vinjetti-peittokuvaa"
+
+msgctxt "#30031"
+msgid "Stop slideshow after a set time"
+msgstr ""
+
+msgctxt "#30032"
+msgid "Stop after (minutes)"
+msgstr ""
