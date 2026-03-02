@@ -22,6 +22,7 @@ RAW_TYPES = ['.3fr', '.arw', '.cr2', '.crw', '.dcr', '.dng', '.erf', '.kdc', '.m
 CACHEFOLDER = xbmcvfs.translatePath(ADDON.getAddonInfo('profile'))
 CACHEFILE = os.path.join(CACHEFOLDER, 'cache_%s')
 RESUMEFILE = os.path.join(CACHEFOLDER, 'offset')
+SHUFFLEFILE = os.path.join(CACHEFOLDER, 'shuffle_order')
 ASFILE = xbmcvfs.translatePath('special://profile/advancedsettings.xml')
 
 def log(txt):

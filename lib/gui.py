@@ -71,6 +71,8 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._get_items()
         if self.slideshow_type == 2 and self.slideshow_resume:
             self._get_offset()
+        if self.slideshow_type == 2 and self.slideshow_random and self.slideshow_remember_shuffle:
+            self._get_offset()
         if self.items:
             # hide startup splash
             self._set_prop('Splash', 'hide')
@@ -99,6 +101,7 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self.slideshow_overlay = ADDON.getSettingBool('overlay')
         self.slideshow_recursive = ADDON.getSettingBool('recursive')
         self.slideshow_random = ADDON.getSettingBool('random')
+        self.slideshow_remember_shuffle = ADDON.getSettingBool('remember_shuffle')
         self.slideshow_resume = ADDON.getSettingBool('resume')
         self.slideshow_scale = ADDON.getSettingBool('scale')
         self.slideshow_name = ADDON.getSettingInt('label')
@@ -350,6 +353,10 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     break
                 self.position += 1
             self.offset = 0
+            # if remember_shuffle is on and we've shown every photo, delete the saved order so next session reshuffles fresh
+            if self.slideshow_random and self.slideshow_remember_shuffle and xbmcvfs.exists(SHUFFLEFILE):
+                xbmcvfs.delete(SHUFFLEFILE)
+                log('all photos shown - shuffle order cleared for next session')
             items = copy.deepcopy(self.items)
 
     def _get_items(self, update=False):
@@ -386,8 +393,19 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     for item in json_response['result'][method[1]]:
                         if 'fanart' in item['art']:
                             self.items.append([item['art']['fanart'], item['label']])
-            # randomize
-            if self.slideshow_random:
+        # randomize
+        if self.slideshow_random:
+            if self.slideshow_remember_shuffle and self.slideshow_type == 2:
+                # try to load a previously saved shuffle order
+                loaded = self._load_shuffle_order()
+                if not loaded:
+                    # no saved order exists (first run, or library changed) - create a fresh shuffle and save it
+                    random.seed()
+                    random.shuffle(self.items)
+                    self._save_shuffle_order()
+                # if loaded successfully, self.items is already in the saved order - no reshuffle needed
+            else:
+                # default behaviour - fresh shuffle every time
                 random.seed()
                 random.shuffle(self.items)
 
@@ -408,6 +426,36 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             offset.close()
         except:
             log('failed to save resume point')
+
+    def _save_shuffle_order(self):
+        if not xbmcvfs.exists(CACHEFOLDER):
+            xbmcvfs.mkdir(CACHEFOLDER)
+        try:
+            shufflefile = xbmcvfs.File(SHUFFLEFILE, 'w')
+            json.dump(self.items, shufflefile)
+            shufflefile.close()
+            log('shuffle order saved (%i items)' % len(self.items))
+        except:
+            log('failed to save shuffle order')
+
+    def _load_shuffle_order(self):
+        try:
+            shufflefile = xbmcvfs.File(SHUFFLEFILE)
+            saved_items = json.load(shufflefile)
+            shufflefile.close()
+            if saved_items and len(saved_items) == len(self.items):
+                # library size matches - safe to use the saved order
+                self.items = saved_items
+                log('shuffle order loaded (%i items)' % len(self.items))
+                return True
+            else:
+                # library has changed - discard the saved order
+                log('shuffle order discarded (library size changed: saved=%i current=%i)' % (len(saved_items) if saved_items else 0, len(self.items)))
+                xbmcvfs.delete(SHUFFLEFILE)
+                return False
+        except:
+            log('no saved shuffle order found')
+            return False
 
     def _read_cache(self, hexfile):
         try:
@@ -495,6 +543,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Background')
         # save the current position  to file
         if self.slideshow_type == 2 and self.slideshow_resume:
+            self._save_offset()
+        # save shuffle order and position when remember shuffle is enabled
+        if self.slideshow_type == 2 and self.slideshow_random and self.slideshow_remember_shuffle:
             self._save_offset()
         self.close()
 

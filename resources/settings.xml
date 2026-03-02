@@ -112,6 +112,16 @@
 					<default>true</default>
 					<control type="toggle"/>
 				</setting>
+				<setting help="" id="remember_shuffle" label="30033" type="boolean">
+					<level>0</level>
+					<default>false</default>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="random">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="toggle"/>
+				</setting>
 				<setting help="" id="resume" label="30026" type="boolean">
 					<level>0</level>
 					<default>false</default>
