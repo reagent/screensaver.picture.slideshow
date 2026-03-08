@@ -42,13 +42,11 @@ EFFECTLIST = ["('conditional', 'effect=zoom start=100 end=400 center=auto time=%
 # get local dateformat to localize the exif date tag
 DATEFORMAT = xbmc.getRegion('dateshort')
 
-
 class BinaryFile(xbmcvfs.File):
     def read(self, numBytes: int = 0) -> bytes:
         if not numBytes:
             return b""
         return bytes(self.readBytes(numBytes))
-
 
 class Screensaver(xbmcgui.WindowXMLDialog):
     def __init__( self, *args, **kwargs ):
@@ -143,9 +141,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
             self._set_prop('Background', 'show')
 
     def _start_show(self, items):
-        # we need to start the update thread after the deep copy of self.items finishes
-        thread = img_update(data=self._get_items)
-        thread.start()
+        # start the background thread that checks for new/removed images every hour
+        self.thread = img_update(data=self._get_items)
+        self.thread.start()
         # record when the slideshow started for timeout purposes
         self.start_time = time.time()
         # start with image 1
@@ -346,23 +344,37 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                         self._exit()
                         return
                 # break out of the for loop if onScreensaverDeactivated is called
-                if  self.stop or self.Monitor.abortRequested():
+                if self.stop or self.Monitor.abortRequested():
                     break
                 self.position += 1
             self.offset = 0
+            # full cycle completed naturally: reshuffle and reload
+            # only reshuffle if we weren't interrupted — stop=True means user exited mid-cycle
+            if not self.stop and self.slideshow_type == 2 and self.slideshow_random:
+                hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random)
+                create_cache(self.slideshow_path, hexfile, self.slideshow_random)
+                self.items = self._read_cache(hexfile)
             items = copy.deepcopy(self.items)
 
     def _get_items(self, update=False):
-        self.slideshow_type  = ADDON.getSettingInt('type')
+        self.slideshow_type = ADDON.getSettingInt('type')
         log('slideshow type: %i' % self.slideshow_type)
-	    # check if we have an image folder, else fallback to video fanart
+        # check if we have an image folder, else fallback to video fanart
         if self.slideshow_type == 2:
-            hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random) # check if path, or settings have changed, so we can create a new cache at startup
+            hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random)
             log('image path: %s' % self.slideshow_path)
             log('update: %s' % update)
-            if (not xbmcvfs.exists(CACHEFILE % hexfile)) or update: # create a new cache if no cache exits or during the background scan
+            if (not xbmcvfs.exists(CACHEFILE % hexfile)) or update:
                 log('create cache')
-                create_cache(self.slideshow_path, hexfile, self.slideshow_random)
+                # when shuffle+resume are active and a cache already exists, preserve the existing
+                # order and only splice in new files / drop deleted ones — never reshuffle
+                cache_exists_now = xbmcvfs.exists(CACHEFILE % hexfile)
+                should_preserve = update and self.slideshow_random and self.slideshow_resume and cache_exists_now
+                if should_preserve:
+                    current_images = self._read_cache(hexfile)
+                else:
+                    current_images = None
+                create_cache(self.slideshow_path, hexfile, self.slideshow_random, current_images)
             self.items = self._read_cache(hexfile)
             log('items: %s' % len(self.items))
             if not self.items:
@@ -370,10 +382,10 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 # delete empty cache file
                 if xbmcvfs.exists(CACHEFILE % hexfile):
                     xbmcvfs.delete(CACHEFILE % hexfile)
-	    # video fanart
+        # video fanart
         if self.slideshow_type == 0:
             methods = [('VideoLibrary.GetMovies', 'movies'), ('VideoLibrary.GetTVShows', 'tvshows')]
-	    # music fanart
+        # music fanart
         elif self.slideshow_type == 1:
             methods = [('AudioLibrary.GetArtists', 'artists')]
         # query the db
@@ -481,6 +493,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
     def _exit(self):
         # exit when onScreensaverDeactivated gets called
         self.stop = True
+        # stop the background update thread so it cannot interfere after we exit
+        if hasattr(self, 'thread'):
+            self.thread._exit()
         # clear our properties on exit
         self._clear_prop('Slide1')
         self._clear_prop('Slide2')
@@ -493,11 +508,10 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         self._clear_prop('Music')
         self._clear_prop('Splash')
         self._clear_prop('Background')
-        # save the current position  to file
+        # save the current position to file
         if self.slideshow_type == 2 and self.slideshow_resume:
             self._save_offset()
         self.close()
-
 
 class img_update(threading.Thread):
     def __init__( self, *args, **kwargs ):
@@ -508,7 +522,7 @@ class img_update(threading.Thread):
 
     def run(self):
         while (not self.Monitor.abortRequested()) and (not self.stop):
-            # create a fresh index as quickly as possible after slidshow started
+            # create a fresh index as quickly as possible after slideshow started
             self._get_items(True)
             count = 0
             while count != 3600: # check for new images every hour
@@ -520,7 +534,6 @@ class img_update(threading.Thread):
     def _exit(self):
         # exit when onScreensaverDeactivated gets called
         self.stop = True
-
 
 class MyMonitor(xbmc.Monitor):
     def __init__( self, *args, **kwargs ):
