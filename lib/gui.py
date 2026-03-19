@@ -140,6 +140,55 @@ class Screensaver(xbmcgui.WindowXMLDialog):
         if self.slideshow_bg:
             self._set_prop('Background', 'show')
 
+    def _read_exif_tags(self, filepath, stop_tag=None):
+        # Opens filepath as a BinaryFile, runs exifread and returns the tags dict.
+        # Optionally accepts a stop_tag for faster partial reads.
+        tags = {}
+        try:
+            exiffile = BinaryFile(filepath)
+            try:
+                kwargs = {}
+                if stop_tag:
+                    kwargs['stop_tag'] = stop_tag
+                tags = exifread.process_file(exiffile, details=False, **kwargs)
+            except:
+                pass
+            exiffile.close()
+        except:
+            pass
+        return tags
+
+    def _get_exif_date(self, filepath):
+        # Returns a localized date string from exif data, or empty string if not found.
+        # Pass 1: fast path — stop as soon as DateTimeOriginal is found (covers ~90% of cameras)
+        val = ''
+        tags = self._read_exif_tags(filepath, stop_tag='DateTimeOriginal')
+        tag_val = str(tags.get('EXIF DateTimeOriginal', ''))
+        if tag_val and tag_val != '0000:00:00 00:00:00':
+            val = tag_val
+        # Pass 2: fallback — full read to check the two remaining tags
+        if not val:
+            tags = self._read_exif_tags(filepath)
+            for tag in ['EXIF DateTimeDigitized', 'Image DateTime']:
+                tag_val = str(tags.get(tag, ''))
+                if tag_val and tag_val != '0000:00:00 00:00:00':
+                    val = tag_val
+                    break
+        # localize the date format (YYYY:MM:DD HH:MM:SS)
+        if val:
+            try:
+                date = val[:10].split(':')
+                timepart = val[10:].strip()
+                if DATEFORMAT[1] == 'm':
+                    val = date[1] + '-' + date[2] + '-' + date[0] + ' ' + timepart
+                elif DATEFORMAT[1] == 'd':
+                    val = date[2] + '-' + date[1] + '-' + date[0] + ' ' + timepart
+                else:
+                    val = date[0] + '-' + date[1] + '-' + date[2] + ' ' + timepart
+            except:
+                pass
+        return val
+
     def _start_show(self, items):
         # start the background thread that checks for new/removed images every hour
         self.thread = img_update(data=self._get_items)
@@ -192,31 +241,9 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                 if self.slideshow_type == 2 and (self.slideshow_date or self.slideshow_iptc) and (os.path.splitext(img[0])[1].lower() in EXIF_TYPES):
                     # get exif date
                     if self.slideshow_date:
-                        exiffile = BinaryFile(img[0])
-                        try:
-                            exiftags = exifread.process_file(exiffile, details=False, stop_tag='DateTimeOriginal')
-                            if 'EXIF DateTimeOriginal' in exiftags:
-                                datetime = exiftags['EXIF DateTimeOriginal'].values
-                                # sometimes exif date returns useless data, probably no date set on camera
-                                if datetime == '0000:00:00 00:00:00':
-                                    datetime = ''
-                                else:
-                                    try:
-                                        # localize the date format
-                                        date = datetime[:10].split(':')
-                                        timepart = datetime[10:].strip()
-                                        if DATEFORMAT[1] == 'm':
-                                            datetime = date[1] + '-' + date[2] + '-' + date[0] + ' ' + timepart
-                                        elif DATEFORMAT[1] == 'd':
-                                            datetime = date[2] + '-' + date[1] + '-' + date[0] + ' ' + timepart
-                                        else:
-                                            datetime = date[0] + '-' + date[1] + '-' + date[2] + ' ' + timepart
-                                    except:
-                                        pass
-                                    exif = True
-                        except:
-                            pass
-                        exiffile.close()
+                        datetime = self._get_exif_date(img[0])
+                        if datetime:
+                            exif = True
                     # get iptc title, description and keywords
                     if self.slideshow_iptc:
                         try:
