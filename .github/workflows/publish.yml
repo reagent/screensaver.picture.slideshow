@@ -2,12 +2,12 @@ name: publish kodi repository
 
 on:
   push:
-    branches: [master]
+    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -17,20 +17,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # need history to confirm the tag actually sits on master
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: build the repository tree
-        # Kodi only offers an update when the version rises, so every build
-        # needs a distinct one. addon.xml stays at its real version in git;
-        # this only rewrites the copy inside the published zip. The 100 offset
-        # keeps dev builds clearly ahead of the 7.0.x upstream line.
+      - name: check the tag is a release
+        # A release is a tag on master whose name matches the version declared
+        # in addon.xml. Both halves matter: a tag on a feature branch is not a
+        # release, and a tag that disagrees with addon.xml would publish a zip
+        # whose declared version is not the one being tagged -- Kodi decides
+        # whether to offer an update from the version inside the zip, so that
+        # mismatch is invisible until an update silently fails to appear.
         run: |
-          VERSION="7.0.$((100 + GITHUB_RUN_NUMBER))"
-          echo "publishing $VERSION"
-          python tools/build_repo.py public --version "$VERSION"
+          TAG="${GITHUB_REF_NAME#v}"
+          DECLARED=$(python -c "import xml.etree.ElementTree as e; print(e.parse('addon.xml').getroot().get('version'))")
+          echo "tag=$TAG addon.xml=$DECLARED"
+
+          if [ "$TAG" != "$DECLARED" ]; then
+            echo "::error::tag v$TAG does not match addon.xml version $DECLARED."
+            echo "::error::Bump addon.xml on development, merge to master, then tag."
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_SHA is not on master. Releases are cut from master."
+            exit 1
+          fi
+
+      - name: build the repository tree
+        # No --version: addon.xml is the source of truth, and the step above
+        # has already proven the tag agrees with it.
+        run: python tools/build_repo.py public
 
       - name: publish to gh-pages
         run: |
@@ -38,9 +59,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cd public
           # A fresh orphan history every time: this branch is build output, so
-          # keeping every past build's zips would grow the repo without limit.
+          # keeping every past release's zips would grow the repo without limit.
           git init -q -b gh-pages
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git add -A
-          git commit -q -m "Build ${{ github.run_number }} from ${{ github.sha }}"
+          git commit -q -m "Release ${{ github.ref_name }} from ${{ github.sha }}"
           git push -q --force origin gh-pages
