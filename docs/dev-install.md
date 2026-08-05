@@ -58,7 +58,9 @@ at 7.0.6, so the first release from this fork is 7.1.0.
 Nothing publishes automatically. Landing a PR on `development` builds and tests
 it, but does not produce an installable version.
 
-1. On `development`, add the release notes to the top of `changelog.txt`:
+1. On `development`, add the release notes to the top of `changelog.txt`, then
+   **commit and push them**. The script starts from a clean tree that matches
+   the remote, so an uncommitted edit blocks it.
 
    ```
    v7.1.0
