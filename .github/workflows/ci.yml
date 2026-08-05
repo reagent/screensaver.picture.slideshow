@@ -48,13 +48,9 @@ jobs:
       - run: pip install kodi-addon-checker
 
       - name: stage the addon as Kodi would receive it
-        # Kodi requires the addon inside a directory named exactly after its
-        # id, and the checker should only see files that ship in the zip --
-        # it reports development files as non-whitelisted payload otherwise.
-        run: |
-          mkdir -p staging/screensaver.picture.slideshow
-          git archive HEAD | tar -x -C staging/screensaver.picture.slideshow
-          cd staging/screensaver.picture.slideshow
-          rm -rf tests docs pytest.ini requirements-dev.txt CLAUDE.md .gitignore .github
+        # Same code path the publish workflow uses, so the checker sees exactly
+        # the fileset that ships. It reports development files as
+        # non-whitelisted payload otherwise.
+        run: python tools/build_repo.py public --staging staging
 
       - run: kodi-addon-checker --branch matrix staging/screensaver.picture.slideshow
