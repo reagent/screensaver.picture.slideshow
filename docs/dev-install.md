@@ -1,6 +1,6 @@
-# Installing dev builds on a Kodi box
+# Installing builds on a Kodi box
 
-Every push to `master` publishes a Kodi repository to GitHub Pages. Install the
+Tagged releases publish a Kodi repository to GitHub Pages. Install the
 repository addon once and Kodi handles updates from then on.
 
 **These are not the official addon.** They replace it, share its id, and are
@@ -34,15 +34,29 @@ not reviewed by Team Kodi.
 Kodi checks its repositories periodically. To pull one immediately:
 Add-ons → Check for updates, then Add-ons → My add-ons → Screensaver.
 
-## Version numbers
+## Cutting a release
 
-`addon.xml` stays at its real version in git. The publish workflow rewrites the
-version *inside the published zip only*, to `7.0.<100 + run number>`.
+Nothing publishes automatically. Landing a PR on `development` builds and tests
+it, but does not produce an installable version.
 
-Kodi offers an update only when the version increases, so every build needs a
-distinct, rising number. The 100 offset keeps dev builds clearly ahead of the
-upstream 7.0.x line and leaves the source tree unchanged, so a build never
-produces a diff to commit.
+1. Bump `version` in `addon.xml` on `development`, and add a `changelog.txt`
+   entry.
+2. Merge `development` into `master`.
+3. Tag it and push:
+
+   ```bash
+   git checkout master && git pull
+   git tag v7.1.0 && git push origin v7.1.0
+   ```
+
+The tag must match the version in `addon.xml`, and must sit on `master` — the
+publish workflow fails loudly on either mismatch rather than shipping something
+mislabelled. Kodi decides whether to offer an update from the version *inside*
+the zip, so a zip whose declared version disagrees with its tag fails silently:
+the update simply never appears.
+
+Kodi offers an update only when the version increases, so releases must rise
+monotonically.
 
 ## Faster loop over SSH
 

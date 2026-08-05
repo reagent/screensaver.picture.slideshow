@@ -24,11 +24,22 @@ line at a time and asserts some test notices — the red phase the `walk()`
 characterization tests never had. Run it after changing anything in `tests/`.
 Slated for removal once the performance work lands (#11).
 
+## Branches
+
+`development` is the mainline — branch from it, PR into it. Every PR and every
+push there runs the full CI suite.
+
+`master` is the release branch. Cutting a release means bumping `addon.xml`,
+merging `development` into `master`, and tagging `vX.Y.Z`. Only a tag publishes.
+Landing a PR does not.
+
+`origin` is Team Kodi's GitLab and is not part of this flow.
+
 ## Installing on a Kodi box
 
-Every push to `master` publishes a Kodi repository to GitHub Pages, so dev
-builds install and update through the Kodi UI. See `docs/dev-install.md` —
-it also covers the faster rsync-over-SSH loop for heavy iteration.
+Tagged releases publish a Kodi repository to GitHub Pages, so builds install and
+update through the Kodi UI. See `docs/dev-install.md` — it also covers the
+faster rsync-over-SSH loop for heavy iteration.
 
 `tools/build_repo.py` defines what ships. Both CI jobs and the publish workflow
 call it, so there is one definition of the addon's fileset.
