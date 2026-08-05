@@ -31,10 +31,36 @@ push there runs the full CI suite.
 
 `master` is the release branch. Only a tag publishes; landing a PR does not.
 Cut a release with `python tools/release.py X.Y.Z` — dry run by default, and it
-enforces the version floor that nothing else can (this addon ships with Kodi, so
-a release at or below the bundled version installs nowhere and reports nothing).
+enforces the version floor that nothing else can: a release at or below what a
+box already has installs nowhere and reports nothing.
 
 `origin` is Team Kodi's GitLab and is not part of this flow.
+
+## Tags
+
+Upstream does not tag, so these were added retroactively:
+
+| Tag | Meaning |
+|---|---|
+| `v7.0.3` | last version published to Kodi's official repo — the newest anyone can install |
+| `v7.0.6` | last version *cut* in git (version bump + changelog entry), never submitted |
+| `fork-point` | last upstream commit before this fork's work. Not a release. |
+
+7.0.4 through 7.0.6 were minted but never submitted, and ~47 upstream commits
+sit unreleased after them. So master is far ahead of anything installable.
+
+## Release notes
+
+Generate from **`v7.0.6..HEAD`** — `changelog.txt` is cumulative and already
+documents 7.0.4 through 7.0.6, so an earlier base would restate them.
+
+Exclude, matching every prior entry in the file: Weblate and translation
+commits, merge commits, and development-only work (CI, tests, tooling, docs).
+Collapse several commits for one feature into one bullet, and cancel any
+add-then-revert pair to nothing.
+
+`<news>` in `addon.xml` mirrors the new `changelog.txt` entry **verbatim** —
+confirmed against history. It has been stale since ~7.0.1; update both together.
 
 ## Installing on a Kodi box
 
