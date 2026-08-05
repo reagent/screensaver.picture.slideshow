@@ -8,31 +8,50 @@ not reviewed by Team Kodi.
 
 ## One-time setup
 
-1. **Enable unknown sources** — Settings → System → Add-ons → Unknown sources.
+Nothing needs to be copied to the box — Kodi installs straight from the URL.
 
-2. **Get the repository zip onto the box.** It lives at a stable URL:
+1. **Enable unknown sources** — Settings → System → Add-ons → Unknown sources,
+   and accept the warning.
+
+2. **Add the repository as a file source** — Settings → File manager →
+   Add source → `<None>`, and enter:
 
    ```
-   https://reagent.github.io/screensaver.picture.slideshow/repository.reagent.slideshow/repository.reagent.slideshow-1.0.0.zip
+   https://reagent.github.io/screensaver.picture.slideshow/
    ```
 
-   LibreELEC / CoreELEC:
+   Name it something recognisable, e.g. `slideshow-dev`. The trailing slash
+   matters.
 
-   ```bash
-   ssh root@<box> 'wget -P /storage/downloads/ https://reagent.github.io/screensaver.picture.slideshow/repository.reagent.slideshow/repository.reagent.slideshow-1.0.0.zip'
-   ```
-
-   Android or Fire TV: download it in a browser on the device.
-
-3. **Install it** — Add-ons → Install from zip file → pick the zip.
+3. **Install the repository addon** — Add-ons → Install from zip file →
+   `slideshow-dev` → `repository.reagent.slideshow` →
+   `repository.reagent.slideshow-1.0.0.zip`.
 
 4. **Install the screensaver** — Add-ons → Install from repository →
    *reagent slideshow dev builds* → Look and feel → Screensaver.
+
+5. **Select it** — Settings → Interface → Screensaver.
+
+Step 3 works because the build writes an `index.html` into every published
+directory. Kodi browses an HTTP source by parsing `<a href>` links out of the
+returned HTML, and GitHub Pages serves no directory listing of its own — a
+directory without an `index.html` is simply a 404, so the folder would appear
+empty.
 
 ## Getting a new build
 
 Kodi checks its repositories periodically. To pull one immediately:
 Add-ons → Check for updates, then Add-ons → My add-ons → Screensaver.
+
+## The addon ships with Kodi
+
+`screensaver.picture.slideshow` is bundled, so the box already has an official
+build. Kodi resolves a duplicate addon id by version and will not replace the
+bundled one with an equal or lower version — nothing errors, the update just
+never appears.
+
+Releases here must therefore stay **ahead of the upstream version**. Upstream is
+at 7.0.6, so the first release from this fork is 7.1.0.
 
 ## Cutting a release
 
