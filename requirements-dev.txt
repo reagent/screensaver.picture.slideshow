@@ -1,0 +1,7 @@
+# Test-only dependencies. The addon itself has no pip dependencies -- its
+# runtime deps are Kodi addons declared in addon.xml.
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/pytest
+pytest>=8
