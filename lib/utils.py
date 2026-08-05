@@ -4,7 +4,7 @@ import json
 import random
 import re
 import sys
-import urllib
+import urllib.parse
 import xbmc
 import xbmcvfs
 import xbmcaddon
@@ -89,7 +89,7 @@ def walk(path):
         # get all paths from the multipath
         paths = path[12:-1].split('/')
         for item in paths:
-            folders.append(urllib.unquote_plus(item))
+            folders.append(urllib.parse.unquote_plus(item))
     else:
         folders.append(path)
     for folder in folders:
