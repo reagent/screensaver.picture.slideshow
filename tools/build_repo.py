@@ -36,12 +36,19 @@ EXCLUDE_TOP_LEVEL = {
 }
 
 
-def _stage_screensaver(staging, version):
-    """Copy the addon into staging/<id>/, optionally rewriting its version."""
+def _stage_screensaver(staging, version, skip=()):
+    """Copy the addon into staging/<id>/, optionally rewriting its version.
+
+    `skip` holds resolved paths to leave alone -- the output and staging
+    directories, which land inside the repo when given as relative paths and
+    would otherwise be copied into themselves.
+    """
     target = staging / ADDON_ID
     target.mkdir(parents=True)
     for item in REPO.iterdir():
         if item.name in EXCLUDE_TOP_LEVEL or item.name.startswith('.'):
+            continue
+        if item.resolve() in skip:
             continue
         if item.is_dir():
             shutil.copytree(item, target / item.name,
@@ -126,7 +133,8 @@ def main():
         shutil.rmtree(path, ignore_errors=True)
         path.mkdir(parents=True)
 
-    staged = [_stage_screensaver(staging, args.version), _stage_repository(staging)]
+    skip = {out_dir, staging}
+    staged = [_stage_screensaver(staging, args.version, skip), _stage_repository(staging)]
     for source in staged:
         print('packaged %s' % _zip(source, out_dir).relative_to(out_dir))
     print('addons.xml.md5 %s' % _write_index(staged, out_dir))
