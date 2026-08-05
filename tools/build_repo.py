@@ -119,6 +119,30 @@ def _write_index(staged, out_dir):
     return digest
 
 
+def _write_indexes(out_dir):
+    """Emit an index.html per directory so Kodi can browse this over HTTP.
+
+    Kodi lists an HTTP source by parsing <a href> out of the returned HTML.
+    GitHub Pages serves no directory listing of its own -- a directory with no
+    index.html is a 404 -- so without these the "add source, then install from
+    zip" flow shows an empty folder. Only the one-time install needs this; once
+    the repository addon is in place Kodi fetches addons.xml by URL directly.
+    """
+    for directory in [out_dir] + sorted(p for p in out_dir.iterdir() if p.is_dir()):
+        entries = sorted(directory.iterdir(), key=lambda p: (p.is_file(), p.name))
+        links = []
+        if directory != out_dir:
+            links.append('<a href="../">../</a>')
+        for entry in entries:
+            if entry.name == 'index.html':
+                continue
+            name = entry.name + ('/' if entry.is_dir() else '')
+            links.append('<a href="%s">%s</a>' % (name, name))
+        (directory / 'index.html').write_text(
+            '<html><body>\n%s\n</body></html>\n' % '<br>\n'.join(links),
+            encoding='utf-8')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('out')
@@ -138,6 +162,8 @@ def main():
     for source in staged:
         print('packaged %s' % _zip(source, out_dir).relative_to(out_dir))
     print('addons.xml.md5 %s' % _write_index(staged, out_dir))
+    _write_indexes(out_dir)
+    print('wrote directory indexes for HTTP browsing')
 
 
 if __name__ == '__main__':
