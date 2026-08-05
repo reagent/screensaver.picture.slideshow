@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # addon.xml imports xbmc.python 3.0.1, so Kodi 19 Matrix (Python 3.8)
+          # is the floor. 3.8 is not published for ubuntu-24.04.
+          - python: "3.8"
+            os: ubuntu-22.04
+          # Kodi 20 Nexus / 21 Omega
+          - python: "3.11"
+            os: ubuntu-latest
+          - python: "3.13"
+            os: ubuntu-latest
+    name: pytest (py${{ matrix.python }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - run: pytest -v
+
+  addon-checker:
+    runs-on: ubuntu-latest
+    name: kodi-addon-checker
+    # Not a gate yet. The checker walks the whole working directory, so it
+    # reports on tests/, docs/ and pytest.ini as if they were addon payload,
+    # and it resolves dependencies against the live Kodi repo. Until we have
+    # seen a clean run here, a failure means "look at the log", not "the
+    # change is bad". Flip this to a real gate once the output is clean.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install kodi-addon-checker
+
+      - name: stage the addon as Kodi would receive it
+        # Kodi requires the addon inside a directory named exactly after its
+        # id, and the checker should only see files that ship in the zip.
+        run: |
+          mkdir -p staging/screensaver.picture.slideshow
+          git archive HEAD | tar -x -C staging/screensaver.picture.slideshow
+          rm -rf staging/screensaver.picture.slideshow/tests \
+                 staging/screensaver.picture.slideshow/docs \
+                 staging/screensaver.picture.slideshow/pytest.ini \
+                 staging/screensaver.picture.slideshow/requirements-dev.txt \
+                 staging/screensaver.picture.slideshow/CLAUDE.md
+
+      - run: kodi-addon-checker --branch matrix staging/screensaver.picture.slideshow
