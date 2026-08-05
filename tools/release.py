@@ -119,10 +119,15 @@ def check_version_floor(new):
 
 
 def check_changelog(new):
-    """The entry is content, so a human writes it; this only checks it exists."""
+    """The entry is content, so a human writes it; this only checks it exists.
+
+    It has to be committed and pushed before running, since the clean-tree and
+    in-sync checks come first.
+    """
     head = (REPO / 'changelog.txt').read_text().splitlines()
     if not head or head[0].strip() != 'v%s' % new:
-        raise Failed('changelog.txt must start with "v%s" and its notes' % new)
+        raise Failed('changelog.txt must start with "v%s" and its notes '
+                     '(commit and push it before releasing)' % new)
     if len(head) < 2 or not head[1].strip():
         raise Failed('changelog.txt has a v%s heading but no notes under it' % new)
 
