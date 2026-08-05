@@ -58,24 +58,33 @@ at 7.0.6, so the first release from this fork is 7.1.0.
 Nothing publishes automatically. Landing a PR on `development` builds and tests
 it, but does not produce an installable version.
 
-1. Bump `version` in `addon.xml` on `development`, and add a `changelog.txt`
-   entry.
-2. Merge `development` into `master`.
-3. Tag it and push:
+1. On `development`, add the release notes to the top of `changelog.txt`:
 
-   ```bash
-   git checkout master && git pull
-   git tag v7.1.0 && git push origin v7.1.0
+   ```
+   v7.1.0
+   - what changed
    ```
 
-The tag must match the version in `addon.xml`, and must sit on `master` — the
-publish workflow fails loudly on either mismatch rather than shipping something
-mislabelled. Kodi decides whether to offer an update from the version *inside*
-the zip, so a zip whose declared version disagrees with its tag fails silently:
-the update simply never appears.
+2. Run the release script:
 
-Kodi offers an update only when the version increases, so releases must rise
-monotonically.
+   ```bash
+   python tools/release.py 7.1.0             # checks only, changes nothing
+   python tools/release.py 7.1.0 --execute   # bump, merge, tag, push
+   ```
+
+It refuses unless the tree is clean, you are on `development`, that branch
+matches the remote, CI is green on the exact commit, `changelog.txt` has notes
+for the version, and the version beats `addon.xml`, the last tag, and Team
+Kodi's current version. Then it bumps `addon.xml`, merges to `master`, and
+pushes the tag — which is what triggers the publish workflow.
+
+Every check runs in both modes, so a passing dry run means `--execute` will not
+stop halfway.
+
+The workflow re-checks that the tag matches `addon.xml` and sits on `master`.
+That is deliberate belt-and-braces: Kodi decides whether to offer an update from
+the version *inside* the zip, so a mislabelled build fails silently — the update
+simply never appears, with nothing to indicate why.
 
 ## Faster loop over SSH
 

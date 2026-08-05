@@ -29,9 +29,10 @@ Slated for removal once the performance work lands (#11).
 `development` is the mainline — branch from it, PR into it. Every PR and every
 push there runs the full CI suite.
 
-`master` is the release branch. Cutting a release means bumping `addon.xml`,
-merging `development` into `master`, and tagging `vX.Y.Z`. Only a tag publishes.
-Landing a PR does not.
+`master` is the release branch. Only a tag publishes; landing a PR does not.
+Cut a release with `python tools/release.py X.Y.Z` — dry run by default, and it
+enforces the version floor that nothing else can (this addon ships with Kodi, so
+a release at or below the bundled version installs nowhere and reports nothing).
 
 `origin` is Team Kodi's GitLab and is not part of this flow.
 
