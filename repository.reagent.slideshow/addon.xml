@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.reagent.slideshow" name="reagent slideshow dev builds" version="1.0.0" provider-name="reagent">
+	<extension point="xbmc.addon.repository" name="reagent slideshow dev builds">
+		<dir>
+			<info compressed="false">https://reagent.github.io/screensaver.picture.slideshow/addons.xml</info>
+			<checksum>https://reagent.github.io/screensaver.picture.slideshow/addons.xml.md5</checksum>
+			<datadir zip="true">https://reagent.github.io/screensaver.picture.slideshow/</datadir>
+		</dir>
+	</extension>
+	<extension point="xbmc.addon.metadata">
+		<summary lang="en_GB">Development builds of the picture slideshow screensaver</summary>
+		<description lang="en_GB">Personal repository serving development builds of screensaver.picture.slideshow. Published automatically from the master branch. Not affiliated with Team Kodi; these builds are not the official addon and are not reviewed.</description>
+		<platform>all</platform>
+		<license>GPL-2.0-or-later</license>
+		<assets>
+			<icon>icon.png</icon>
+		</assets>
+	</extension>
+</addon>

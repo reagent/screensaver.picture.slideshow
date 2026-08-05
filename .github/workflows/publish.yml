@@ -1,0 +1,46 @@
+name: publish kodi repository
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: build the repository tree
+        # Kodi only offers an update when the version rises, so every build
+        # needs a distinct one. addon.xml stays at its real version in git;
+        # this only rewrites the copy inside the published zip. The 100 offset
+        # keeps dev builds clearly ahead of the 7.0.x upstream line.
+        run: |
+          VERSION="7.0.$((100 + GITHUB_RUN_NUMBER))"
+          echo "publishing $VERSION"
+          python tools/build_repo.py public --version "$VERSION"
+
+      - name: publish to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cd public
+          # A fresh orphan history every time: this branch is build output, so
+          # keeping every past build's zips would grow the repo without limit.
+          git init -q -b gh-pages
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git add -A
+          git commit -q -m "Build ${{ github.run_number }} from ${{ github.sha }}"
+          git push -q --force origin gh-pages

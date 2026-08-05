@@ -24,6 +24,15 @@ line at a time and asserts some test notices — the red phase the `walk()`
 characterization tests never had. Run it after changing anything in `tests/`.
 Slated for removal once the performance work lands (#11).
 
+## Installing on a Kodi box
+
+Every push to `master` publishes a Kodi repository to GitHub Pages, so dev
+builds install and update through the Kodi UI. See `docs/dev-install.md` —
+it also covers the faster rsync-over-SSH loop for heavy iteration.
+
+`tools/build_repo.py` defines what ships. Both CI jobs and the publish workflow
+call it, so there is one definition of the addon's fileset.
+
 ## Agent skills
 
 ### Issue tracker
