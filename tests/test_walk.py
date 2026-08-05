@@ -101,28 +101,25 @@ def test_missing_folder_is_never_listed(utils, tree):
     assert tree.listdir_calls == []
 
 
-def test_exists_is_checked_for_every_folder_including_subdirectories(utils, tree):
-    """Pins the redundant round trip that #3 removes.
+def test_exists_is_checked_once_for_the_entry_folder_only(utils, tree):
+    """Subdirectories are not re-checked -- listdir just reported them.
 
-    Each recursion re-checks exists() on a subdirectory whose existence the
-    parent's listdir() already established -- a second SMB round trip per
-    directory. This test is expected to change when #3 lands; that is the
-    point, so the reduction shows up as a deliberate edit rather than silently.
+    Previously every recursion spent a second SMB round trip confirming a
+    subdirectory the parent's listdir() had already returned, doubling the
+    round trips for the whole scan.
     """
     tree.add(ROOT, dirs=['sub'])
-    tree.add(ROOT + 'sub/', files=['a.jpg'])
+    tree.add(ROOT + 'sub/', dirs=['deeper'], files=['a.jpg'])
+    tree.add(ROOT + 'sub/deeper/', files=['b.jpg'])
 
     utils.walk(ROOT)
 
-    assert folder_checks(tree) == ['smb://server/pics/', 'smb://server/pics/sub/']
+    assert folder_checks(tree) == [ROOT]
 
 
-def test_advancedsettings_is_reparsed_for_every_directory(utils, tree, excludes):
-    """Pins the per-directory XML parse that #3 hoists out.
-
-    get_excludes() runs at the top of every walk() call, so a 2000-directory
-    tree reads and parses advancedsettings.xml 2000 times.
-    """
+def test_advancedsettings_is_parsed_once_per_scan(utils, tree, excludes):
+    """Previously reparsed for every directory, since get_excludes() ran at
+    the top of each recursive walk() call."""
     asfile = excludes('nothing-matches-this')
     tree.add(ROOT, dirs=['a', 'b'])
     tree.add(ROOT + 'a/', files=['x.jpg'])
@@ -130,7 +127,29 @@ def test_advancedsettings_is_reparsed_for_every_directory(utils, tree, excludes)
 
     utils.walk(ROOT)
 
-    assert tree.exists_calls.count(asfile) == 3
+    assert tree.exists_calls.count(asfile) == 1
+
+
+def test_walk_does_not_mutate_the_module_level_extension_list(utils, tree, conditions):
+    """IMAGE_TYPES used to be extend()ed inside the per-folder loop.
+
+    It is module level, so with the decoder addons installed it grew by 25
+    entries per directory visited and never shrank -- unbounded within a scan
+    and persistent across scans, since Kodi keeps the Python process alive.
+    The membership test then walked that growing list once per file.
+    """
+    conditions.update({
+        'System.HasAddon(imagedecoder.heif)',
+        'System.HasAddon(imagedecoder.mpo)',
+        'System.HasAddon(imagedecoder.raw)',
+    })
+    before = list(utils.IMAGE_TYPES)
+    tree.add(ROOT, dirs=['a', 'b'], files=['x.jpg'])
+    tree.add(ROOT + 'a/', files=['y.heic'])
+    tree.add(ROOT + 'b/', files=['z.cr2'])
+
+    assert len(utils.walk(ROOT)) == 3
+    assert utils.IMAGE_TYPES == before
 
 
 class TestExcludes:

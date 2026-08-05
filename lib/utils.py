@@ -80,84 +80,96 @@ def get_excludes():
             pass
     return regexes
 
-def walk(path):
-    images = []
-    folders = []
-    excludes = get_excludes()
+def _natural_key(name):
+    return [int(part) if part.isdigit() else part for part in re.split('([0-9]+)', name)]
+
+def _image_extensions():
+    # the imagedecoder addons are what make these formats displayable, so the
+    # set depends on what is installed. Built once per scan rather than being
+    # appended onto the module-level IMAGE_TYPES on every folder visited.
+    extensions = list(IMAGE_TYPES)
+    if xbmc.getCondVisibility('System.HasAddon(imagedecoder.heif)'):
+        extensions += HEIF_TYPES
+    if xbmc.getCondVisibility('System.HasAddon(imagedecoder.mpo)'):
+        extensions += MPO_TYPES
+    if xbmc.getCondVisibility('System.HasAddon(imagedecoder.raw)'):
+        extensions += RAW_TYPES
+    return frozenset(extensions)
+
+def _excluded(name, excludes):
+    # check pictureexcludes from as.xml
+    for regex in excludes:
+        if regex.search(name):
+            return True
+    return False
+
+def _entry_folders(path):
     # multipath support
     if path.startswith('multipath://'):
         # get all paths from the multipath
-        paths = path[12:-1].split('/')
-        for item in paths:
-            folders.append(urllib.parse.unquote_plus(item))
+        return [urllib.parse.unquote_plus(item) for item in path[12:-1].split('/')]
+    return [path]
+
+def _listdir_plugin(folder):
+    getroot = xbmc.executeJSONRPC('{"jsonrpc":"2.0", "method":"Files.GetDirectory", "params":{"directory":"%s", "sort":{"method":"label"}}, "id":1 }' % folder)
+    root = json.loads(getroot)
+    dirs = []
+    files = []
+    if 'result' in root and 'files' in root["result"]:
+        for item in root["result"]["files"]:
+            if item["filetype"] == "file":
+                files.append(item)
+            elif item["filetype"] == "directory":
+                dirs.append(item["file"])
+    return dirs, files
+
+def _scan(folder, excludes, extensions, recursive):
+    images = []
+    plugin = folder.startswith('plugin://')
+    # get all files and subfolders
+    if plugin:
+        dirs, files = _listdir_plugin(folder)
     else:
-        folders.append(path)
-    for folder in folders:
-        if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
-            dirs = []
-            files = []
-            if xbmc.getCondVisibility('System.HasAddon(imagedecoder.heif)'):
-                IMAGE_TYPES.extend(HEIF_TYPES)
-            if xbmc.getCondVisibility('System.HasAddon(imagedecoder.mpo)'):
-                IMAGE_TYPES.extend(MPO_TYPES)
-            if xbmc.getCondVisibility('System.HasAddon(imagedecoder.raw)'):
-                IMAGE_TYPES.extend(RAW_TYPES)
-            # get all files and subfolders
-            if folder.startswith('plugin://'):
-                getroot = xbmc.executeJSONRPC('{"jsonrpc":"2.0", "method":"Files.GetDirectory", "params":{"directory":"%s", "sort":{"method":"label"}}, "id":1 }' % folder)
-                root = json.loads(getroot)
-                if 'result' in root and 'files' in root["result"]:
-                    for item in root["result"]["files"]:
-                        if item["filetype"] == "file":
-                            files.append(item)
-                        elif item["filetype"] == "directory":
-                            dirs.append(item["file"])
-            else:
-                dirs, files = xbmcvfs.listdir(folder)
-            log('dirs: %s' % len(dirs))
-            log('files: %s' % len(files))
-            if not folder.startswith('plugin://'):
-                # natural sort
-                convert = lambda text: int(text) if text.isdigit() else text
-                alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
-                files.sort(key=alphanum_key)
-            for item in files:
-                # check pictureexcludes from as.xml
-                fileskip = False
-                if excludes:
-                    for string in excludes:
-                        regex = re.compile(string)
-                        if folder.startswith('plugin://'):
-                            match = regex.search(item["label"])
-                        else:
-                            match = regex.search(item)
-                        if match:
-                            fileskip = True
-                            break
-                # filter out all images
-                if folder.startswith('plugin://'):
-                    if os.path.splitext(item["label"])[1].lower() in IMAGE_TYPES and not fileskip:
-                        images.append([item["file"], item["label"]])
+        dirs, files = xbmcvfs.listdir(folder)
+    log('dirs: %s' % len(dirs))
+    log('files: %s' % len(files))
+    if not plugin:
+        # natural sort
+        files.sort(key=_natural_key)
+    for item in files:
+        name = item["label"] if plugin else item
+        # filter out all images
+        if os.path.splitext(name)[1].lower() in extensions and not _excluded(name, excludes):
+            images.append([item["file"] if plugin else os.path.join(folder,item), name])
+    if recursive:
+        # recursively scan all subfolders
+        for item in dirs:
+            if _excluded(item, excludes):
+                continue
+            if item.startswith('plugin://'):
+                # a plugin may hand back a directory it cannot actually serve,
+                # so these keep the existence check
+                if xbmcvfs.exists(xbmcvfs.translatePath(item)):
+                    images += _scan(item, excludes, extensions, recursive)
                 else:
-                    if os.path.splitext(item)[1].lower() in IMAGE_TYPES and not fileskip:
-                        images.append([os.path.join(folder,item), item])
-            if xbmcaddon.Addon().getSettingBool('recursive'):
-                for item in dirs:
-                    # check pictureexcludes from as.xml
-                    dirskip = False
-                    if excludes:
-                        for string in excludes:
-                            regex = re.compile(string)
-                            match = regex.search(item)
-                            if match:
-                                dirskip = True
-                                break
-                    # recursively scan all subfolders
-                    if not dirskip:
-                        if item.startswith('plugin://'):
-                            images += walk(item)
-                        else:
-                            images += walk(os.path.join(folder,item,'')) # make sure paths end with a slash
+                    log('folder does not exist')
+            else:
+                # no exists() here: listdir just reported this subfolder, and
+                # confirming that costs another round trip per directory
+                images += _scan(os.path.join(folder,item,''), excludes, extensions, recursive) # make sure paths end with a slash
+    return images
+
+def walk(path):
+    # settings, excludes and the decodable extension set do not vary per
+    # folder. Reading them once per scan instead of once per directory is what
+    # makes a deep tree over SMB bearable.
+    excludes = [re.compile(expr) for expr in get_excludes()]
+    extensions = _image_extensions()
+    recursive = xbmcaddon.Addon().getSettingBool('recursive')
+    images = []
+    for folder in _entry_folders(path):
+        if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
+            images += _scan(folder, excludes, extensions, recursive)
         else:
             log('folder does not exist')
     return images

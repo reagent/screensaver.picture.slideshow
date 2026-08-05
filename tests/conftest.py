@@ -20,21 +20,6 @@ def _reset_fakes():
     yield
 
 
-@pytest.fixture(autouse=True)
-def _restore_image_types():
-    """Undo walk()'s mutation of the module-level IMAGE_TYPES list.
-
-    lib/utils.py:99-104 calls IMAGE_TYPES.extend() inside walk()'s per-folder
-    loop, so any test that runs with an imagedecoder addon present leaks those
-    extensions into every test that follows -- order-dependent failures in the
-    extension-filter tests. Delete this fixture when the hoist lands (#3); at
-    that point the mutation is gone and the fixture is pinning nothing.
-    """
-    original = list(_utils.IMAGE_TYPES)
-    yield
-    _utils.IMAGE_TYPES[:] = original
-
-
 @pytest.fixture
 def utils():
     return _utils
