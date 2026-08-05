@@ -10,11 +10,22 @@ its own. tests/mutation_check.py perturbs lib/utils.py line by line and asserts
 some test notices; run it after changing anything here.
 """
 
+from urllib.parse import quote_plus
+
 ROOT = 'smb://server/pics/'
 
 
 def paths(images):
     return [img[0] for img in images]
+
+
+def multipath(*folders):
+    """Build a multipath:// url the way Kodi does.
+
+    Each member is url-encoded so its own '/' separators survive the split
+    walk() performs on the joined string.
+    """
+    return 'multipath://' + ''.join(quote_plus(f) + '/' for f in folders)
 
 
 def folder_checks(tree):
@@ -147,6 +158,51 @@ class TestExcludes:
         tree.add(ROOT, files=['private-stuff.jpg'])
 
         assert paths(utils.walk(ROOT)) == ['smb://server/pics/private-stuff.jpg']
+
+
+class TestMultipath:
+    """A multipath:// source is several folders in one setting.
+
+    Kodi url-encodes each member so that '/' inside a path becomes %2F and the
+    members can be split on '/'.
+    """
+
+    def test_images_from_every_member_in_multipath_order(self, utils, tree):
+        tree.add('smb://server/second/', files=['b.jpg'])
+        tree.add('smb://server/first/', files=['a.jpg'])
+
+        images = utils.walk(multipath('smb://server/second/', 'smb://server/first/'))
+
+        assert paths(images) == [
+            'smb://server/second/b.jpg',
+            'smb://server/first/a.jpg',
+        ]
+
+    def test_encoded_spaces_are_decoded(self, utils, tree):
+        tree.add('smb://server/my photos/', files=['a.jpg'])
+
+        images = utils.walk(multipath('smb://server/my photos/'))
+
+        assert paths(images) == ['smb://server/my photos/a.jpg']
+
+    def test_members_are_recursed_into(self, utils, tree, settings):
+        settings['recursive'] = True
+        tree.add('smb://server/first/', dirs=['sub'], files=['a.jpg'])
+        tree.add('smb://server/first/sub/', files=['deep.jpg'])
+
+        images = utils.walk(multipath('smb://server/first/'))
+
+        assert paths(images) == [
+            'smb://server/first/a.jpg',
+            'smb://server/first/sub/deep.jpg',
+        ]
+
+    def test_missing_member_is_skipped_without_killing_the_scan(self, utils, tree):
+        tree.add('smb://server/present/', files=['a.jpg'])
+
+        images = utils.walk(multipath('smb://server/gone/', 'smb://server/present/'))
+
+        assert paths(images) == ['smb://server/present/a.jpg']
 
 
 class TestExtensionFiltering:
