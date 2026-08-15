@@ -62,6 +62,9 @@ MUTATIONS = [
      "                images += _scan(os.path.join(folder,item,''), excludes, extensions, recursive) # make sure paths end with a slash",
      "                sub = os.path.join(folder,item,'')  # MUTANT\n"
      "                images += _scan(sub, excludes, extensions, recursive) if xbmcvfs.exists(xbmcvfs.translatePath(sub)) else []"),
+    ("shallow scan quietly descends anyway",
+     "    recursive = False if shallow else xbmcaddon.Addon().getSettingBool('recursive')",
+     "    recursive = xbmcaddon.Addon().getSettingBool('recursive')  # MUTANT"),
     ("advancedsettings reparsed per scan step",
      "    excludes = [re.compile(expr) for expr in get_excludes()]",
      "    excludes = [re.compile(expr) for expr in get_excludes() + get_excludes()]  # MUTANT"),

@@ -422,7 +422,14 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     current_images = self._read_cache(hexfile)
                 else:
                     current_images = None
-                create_cache(self.slideshow_path, hexfile, self.slideshow_random, current_images)
+                # First launch, nothing cached: list the top folder only and start on
+                # those. A full scan here blocks onInit, and on a large tree over SMB
+                # that is minutes of splash screen. The img_update thread runs
+                # _get_items(True) as soon as the slideshow starts, so the deep scan
+                # is already happening -- it just is not in the way any more.
+                shallow = not update and not cache_exists_now
+                log('shallow scan: %s' % shallow)
+                create_cache(self.slideshow_path, hexfile, self.slideshow_random, current_images, shallow)
             self.items = self._read_cache(hexfile)
             log('items: %s' % len(self.items))
             if not self.items:

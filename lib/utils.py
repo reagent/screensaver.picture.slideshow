@@ -31,8 +31,8 @@ def log(txt):
 def checksum(path):
     return hashlib.md5(path).hexdigest()
 
-def create_cache(path, hexfile, randomize, current_images=None):
-    images = walk(path)
+def create_cache(path, hexfile, randomize, current_images=None, shallow=False):
+    images = walk(path, shallow)
     if not xbmcvfs.exists(CACHEFOLDER):
         xbmcvfs.mkdir(CACHEFOLDER)
     # remove old cache files, but preserve settings and the resume offset
@@ -164,13 +164,15 @@ def _scan(folder, excludes, extensions, recursive):
                 images += _scan(os.path.join(folder,item,''), excludes, extensions, recursive) # make sure paths end with a slash
     return images
 
-def walk(path):
+def walk(path, shallow=False):
     # settings, excludes and the decodable extension set do not vary per
     # folder. Reading them once per scan instead of once per directory is what
     # makes a deep tree over SMB bearable.
     excludes = [re.compile(expr) for expr in get_excludes()]
     extensions = _image_extensions()
-    recursive = xbmcaddon.Addon().getSettingBool('recursive')
+    # a shallow scan lists the entry folders and stops. One round trip, so the
+    # slideshow can start on those images while the full scan runs behind it.
+    recursive = False if shallow else xbmcaddon.Addon().getSettingBool('recursive')
     images = []
     for folder in _entry_folders(path):
         if xbmcvfs.exists(xbmcvfs.translatePath(folder)):

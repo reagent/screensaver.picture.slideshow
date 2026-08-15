@@ -1,3 +1,5 @@
+import glob
+import os
 import sys
 
 import pytest
@@ -19,6 +21,12 @@ from lib import utils as _utils  # noqa: E402
 @pytest.fixture(autouse=True)
 def _reset_fakes():
     fakes.reset()
+    # The fake profile directory is created once per session, so cache files
+    # written by one test are still on disk for the next -- which silently turns
+    # "first launch, nothing cached" tests into "cache already exists" ones.
+    for stale in glob.glob(os.path.join(fakes.PROFILE_DIR, '**', '*'), recursive=True):
+        if os.path.isfile(stale):
+            os.remove(stale)
     yield
 
 
