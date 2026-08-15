@@ -1,9 +1,27 @@
 # screensaver.picture.slideshow
 
-Official Team Kodi picture slideshow screensaver addon. Python 3, Kodi Matrix+.
+A **hard fork** of Team Kodi's picture slideshow screensaver addon. Python 3.
+Changes here are not submitted upstream.
 
-Upstream is `origin` → gitlab.com/ronie/screensaver.picture.slideshow (Team Kodi).
-`reagent` → github.com/reagent/screensaver.picture.slideshow is this fork.
+`origin` → gitlab.com/ronie/screensaver.picture.slideshow (Team Kodi, upstream).
+`reagent` → github.com/reagent/screensaver.picture.slideshow (ours).
+
+## The shared addon id
+
+We deliberately keep upstream's addon id, `screensaver.picture.slideshow`, so a
+build here is a drop-in replacement that inherits existing settings, cache and
+resume position.
+
+The cost is accepted, not overlooked: Kodi resolves a duplicate addon id across
+repositories by taking the **highest version**. If Team Kodi ever publishes a
+version above ours, a box carrying both repositories silently replaces our build
+with theirs — no error, no prompt. `tools/release.py` refuses to release at or
+below upstream's current version, which is the only defence available and only
+covers us at release time. Nothing protects against upstream releasing later.
+
+Revisit by taking our own id, but only ever before a release: changing the id
+afterwards is a new addon to Kodi, so users lose their settings and resume
+position.
 
 ## Commit style
 

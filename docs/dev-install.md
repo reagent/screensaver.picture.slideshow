@@ -43,15 +43,22 @@ empty.
 Kodi checks its repositories periodically. To pull one immediately:
 Add-ons → Check for updates, then Add-ons → My add-ons → Screensaver.
 
-## The addon ships with Kodi
+## We share the official addon's id
 
-`screensaver.picture.slideshow` is bundled, so the box already has an official
-build. Kodi resolves a duplicate addon id by version and will not replace the
-bundled one with an equal or lower version — nothing errors, the update just
-never appears.
+This is a hard fork that keeps upstream's addon id, so a build here replaces the
+official addon rather than sitting alongside it — inheriting its settings, cache
+and resume position.
 
-Releases here must therefore stay **ahead of the upstream version**. Upstream is
-at 7.0.6, so the first release from this fork is 7.1.0.
+Kodi resolves a duplicate id across repositories by taking the **highest
+version**, and reports nothing either way. Two consequences:
+
+- A release at or below what the box already has never installs. The newest
+  version in Kodi's own repository is **7.0.3** (6.3.5 on matrix); 7.0.4 through
+  7.0.6 were cut upstream but never submitted. `tools/release.py` refuses to
+  release below upstream's current version.
+- If Team Kodi ever publishes above us, a box carrying both repositories
+  silently switches back to their build. Nothing can prevent that while we share
+  the id; see `CLAUDE.md`.
 
 ## Cutting a release
 
