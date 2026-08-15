@@ -17,24 +17,32 @@ SRC = pathlib.Path('lib/utils.py')
 ORIG = SRC.read_text()
 
 MUTATIONS = [
+    # _list_folder is shared by the serial and threaded walks, so these hit
+    # whichever one walk() chooses
     ("drop natural sort of files",
-     "        files.sort(key=_natural_key)",
-     "        pass  # MUTANT"),
-    ("sort dirs before recursing",
-     "        for item in dirs:",
-     "        for item in sorted(dirs):  # MUTANT"),
+     "    files.sort(key=_natural_key)",
+     "    pass  # MUTANT"),
+    ("sort subfolders before descending",
+     "    subfolders = [os.path.join(folder,item,'') for item in dirs if not _excluded(item, excludes)]",
+     "    subfolders = sorted(os.path.join(folder,item,'') for item in dirs if not _excluded(item, excludes))  # MUTANT"),
     ("never skip excluded files",
-     "        if os.path.splitext(name)[1].lower() in extensions and not _excluded(name, excludes):",
-     "        if os.path.splitext(name)[1].lower() in extensions:  # MUTANT"),
+     "        if os.path.splitext(item)[1].lower() in extensions and not _excluded(item, excludes):",
+     "        if os.path.splitext(item)[1].lower() in extensions:  # MUTANT"),
     ("never skip excluded dirs",
-     "            if _excluded(item, excludes):",
-     "            if False:  # MUTANT"),
-    ("ignore the recursive setting",
-     "    if recursive:",
-     "    if True:  # MUTANT"),
+     "    subfolders = [os.path.join(folder,item,'') for item in dirs if not _excluded(item, excludes)]",
+     "    subfolders = [os.path.join(folder,item,'') for item in dirs]  # MUTANT"),
+    ("threaded walk ignores the recursive setting",
+     "                if recursive:\n                    for subfolder in subfolders:",
+     "                if True:  # MUTANT\n                    for subfolder in subfolders:"),
+    ("serial walk ignores the recursive setting",
+     "    subfolders, images = _list_folder(folder, excludes, extensions)\n    if recursive:",
+     "    subfolders, images = _list_folder(folder, excludes, extensions)\n    if True:  # MUTANT"),
+    ("threaded walk emits directories in completion order",
+     "            stack.extend(reversed(subfolders))",
+     "            stack.extend(subfolders)  # MUTANT"),
     ("extension match becomes case sensitive",
-     "        if os.path.splitext(name)[1].lower() in extensions and not _excluded(name, excludes):",
-     "        if os.path.splitext(name)[1] in extensions and not _excluded(name, excludes):  # MUTANT"),
+     "        if os.path.splitext(item)[1].lower() in extensions and not _excluded(item, excludes):",
+     "        if os.path.splitext(item)[1] in extensions and not _excluded(item, excludes):  # MUTANT"),
     ("heif always enabled",
      "    if xbmc.getCondVisibility('System.HasAddon(imagedecoder.heif)'):",
      "    if True:  # MUTANT"),
@@ -42,8 +50,8 @@ MUTATIONS = [
      "    if xbmc.getCondVisibility('System.HasAddon(imagedecoder.raw)'):",
      "    if True:  # MUTANT"),
     ("drop folder prefix from stored path",
-     '            images.append([item["file"] if plugin else os.path.join(folder,item), name])',
-     "            images.append([name, name])  # MUTANT"),
+     "            images.append([os.path.join(folder,item), item])",
+     "            images.append([item, item])  # MUTANT"),
     ("multipath members left url-encoded",
      "        return [urllib.parse.unquote_plus(item) for item in path[12:-1].split('/')]",
      "        return [item for item in path[12:-1].split('/')]  # MUTANT"),
@@ -59,9 +67,10 @@ MUTATIONS = [
      "    extensions = list(IMAGE_TYPES)",
      "    extensions = IMAGE_TYPES  # MUTANT -- += then mutates the global in place"),
     ("exists() re-checked for every subdirectory",
-     "                images += _scan(os.path.join(folder,item,''), excludes, extensions, recursive) # make sure paths end with a slash",
-     "                sub = os.path.join(folder,item,'')  # MUTANT\n"
-     "                images += _scan(sub, excludes, extensions, recursive) if xbmcvfs.exists(xbmcvfs.translatePath(sub)) else []"),
+     "    subfolders = [os.path.join(folder,item,'') for item in dirs if not _excluded(item, excludes)]",
+     "    subfolders = [os.path.join(folder,item,'') for item in dirs\n"
+     "                  if not _excluded(item, excludes)\n"
+     "                  and xbmcvfs.exists(xbmcvfs.translatePath(os.path.join(folder,item,'')))]  # MUTANT"),
     ("advancedsettings reparsed per scan step",
      "    excludes = [re.compile(expr) for expr in get_excludes()]",
      "    excludes = [re.compile(expr) for expr in get_excludes() + get_excludes()]  # MUTANT"),
@@ -75,7 +84,8 @@ print('baseline green\n')
 
 fails = 0
 for name, old, new in MUTATIONS:
-    assert ORIG.count(old) == 1, "anchor not unique: %s" % name
+    assert ORIG.count(old) == 1, \
+        "anchor for %r matched %d times, expected 1 -- the source moved" % (name, ORIG.count(old))
     SRC.write_text(ORIG.replace(old, new))
     # .pyc validation keys on (mtime seconds, size). Mutants of equal size
     # written within the same second reuse the previous mutant's bytecode.

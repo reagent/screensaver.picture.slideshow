@@ -16,7 +16,9 @@ Two deliberate design choices:
 
 import json
 import os
+import random
 import tempfile
+import time
 import types
 
 # Real directory backing 'special://profile/'. Created once per test session;
@@ -65,6 +67,8 @@ class State:
         # JSON-RPC method name -> response dict
         self.jsonrpc = {}
         self.log_lines = []
+        # seconds; when set, listdir sleeps a jittered amount up to this
+        self.listdir_delay = 0
         self.addon_info = {'id': 'screensaver.picture.slideshow',
                            'profile': 'special://profile/addon_data/screensaver.picture.slideshow/',
                            'path': '/fake/addon/path',
@@ -102,6 +106,10 @@ def _exists(path):
 
 
 def _listdir(path):
+    if state.listdir_delay:
+        # jittered, so a threaded walk finishes directories out of order --
+        # the only way an order-preservation bug shows up in a test
+        time.sleep(random.uniform(0, state.listdir_delay))
     state.tree.listdir_calls.append(path)
     if state.tree.has(path):
         return state.tree.listdir(path)

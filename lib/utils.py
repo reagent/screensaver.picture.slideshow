@@ -1,3 +1,4 @@
+import concurrent.futures
 import hashlib
 import os
 import json
@@ -22,6 +23,9 @@ RAW_TYPES = ['.3fr', '.arw', '.cr2', '.crw', '.dcr', '.dng', '.erf', '.kdc', '.m
 CACHEFOLDER = xbmcvfs.translatePath(ADDON.getAddonInfo('profile'))
 CACHEFILE = os.path.join(CACHEFOLDER, 'cache_%s')
 RESUMEFILE = os.path.join(CACHEFOLDER, 'offset')
+# threads used to list directories during a scan. 1 disables the pool entirely
+# and walks serially, which is also the reference behaviour the tests compare to
+WALK_WORKERS = 8
 ASFILE = xbmcvfs.translatePath('special://profile/advancedsettings.xml')
 
 def log(txt):
@@ -128,40 +132,86 @@ def _listdir_plugin(folder):
                 dirs.append(item["file"])
     return dirs, files
 
-def _scan(folder, excludes, extensions, recursive):
+def _scan_plugin(folder, excludes, extensions, recursive):
+    # plugin:// directories come from JSON-RPC, which returns dicts rather than
+    # names and full paths rather than children, so they cannot share the VFS
+    # listing path
     images = []
-    plugin = folder.startswith('plugin://')
-    # get all files and subfolders
-    if plugin:
-        dirs, files = _listdir_plugin(folder)
-    else:
-        dirs, files = xbmcvfs.listdir(folder)
+    dirs, files = _listdir_plugin(folder)
     log('dirs: %s' % len(dirs))
     log('files: %s' % len(files))
-    if not plugin:
-        # natural sort
-        files.sort(key=_natural_key)
     for item in files:
-        name = item["label"] if plugin else item
         # filter out all images
-        if os.path.splitext(name)[1].lower() in extensions and not _excluded(name, excludes):
-            images.append([item["file"] if plugin else os.path.join(folder,item), name])
+        if os.path.splitext(item["label"])[1].lower() in extensions and not _excluded(item["label"], excludes):
+            images.append([item["file"], item["label"]])
     if recursive:
-        # recursively scan all subfolders
         for item in dirs:
             if _excluded(item, excludes):
                 continue
-            if item.startswith('plugin://'):
-                # a plugin may hand back a directory it cannot actually serve,
-                # so these keep the existence check
-                if xbmcvfs.exists(xbmcvfs.translatePath(item)):
-                    images += _scan(item, excludes, extensions, recursive)
-                else:
-                    log('folder does not exist')
+            # a plugin may hand back a directory it cannot actually serve,
+            # so these keep the existence check
+            if xbmcvfs.exists(xbmcvfs.translatePath(item)):
+                images += _scan(item, excludes, extensions, recursive)
             else:
-                # no exists() here: listdir just reported this subfolder, and
-                # confirming that costs another round trip per directory
-                images += _scan(os.path.join(folder,item,''), excludes, extensions, recursive) # make sure paths end with a slash
+                log('folder does not exist')
+    return images
+
+def _scan(folder, excludes, extensions, recursive):
+    # serial walk. Kept as the reference the threaded version is compared
+    # against, and used directly for plugin:// trees.
+    if folder.startswith('plugin://'):
+        return _scan_plugin(folder, excludes, extensions, recursive)
+    subfolders, images = _list_folder(folder, excludes, extensions)
+    if recursive:
+        # recursively scan all subfolders
+        for subfolder in subfolders:
+            images += _scan(subfolder, excludes, extensions, recursive)
+    return images
+
+def _list_folder(folder, excludes, extensions):
+    # one directory: the images in it, and the subfolders worth descending into
+    dirs, files = xbmcvfs.listdir(folder)
+    log('dirs: %s' % len(dirs))
+    log('files: %s' % len(files))
+    # natural sort
+    files.sort(key=_natural_key)
+    images = []
+    for item in files:
+        # filter out all images
+        if os.path.splitext(item)[1].lower() in extensions and not _excluded(item, excludes):
+            images.append([os.path.join(folder,item), item])
+    # make sure paths end with a slash
+    subfolders = [os.path.join(folder,item,'') for item in dirs if not _excluded(item, excludes)]
+    return subfolders, images
+
+def _scan_parallel(root, excludes, extensions, recursive):
+    # listdir is one round trip per directory and the serial walk pays them one
+    # after another, so a deep tree costs directory count x latency. The calls
+    # are independent, so overlapping them hides most of it.
+    listing = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=WALK_WORKERS) as pool:
+        pending = {pool.submit(_list_folder, root, excludes, extensions): root}
+        while pending:
+            done, _ = concurrent.futures.wait(pending, return_when=concurrent.futures.FIRST_COMPLETED)
+            for future in done:
+                folder = pending.pop(future)
+                subfolders, images = future.result()
+                listing[folder] = (subfolders, images)
+                if recursive:
+                    for subfolder in subfolders:
+                        pending[pool.submit(_list_folder, subfolder, excludes, extensions)] = subfolder
+    # Directories complete in whatever order the network returns them, so the
+    # output is rebuilt from the recorded structure rather than from completion
+    # order: depth first, subfolders in the order listdir gave them. That is
+    # what the serial walk produces, and the resume offset is an index into it.
+    images = []
+    stack = [root]
+    while stack:
+        folder = stack.pop()
+        subfolders, folder_images = listing[folder]
+        images += folder_images
+        if recursive:
+            stack.extend(reversed(subfolders))
     return images
 
 def walk(path):
@@ -174,7 +224,12 @@ def walk(path):
     images = []
     for folder in _entry_folders(path):
         if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
-            images += _scan(folder, excludes, extensions, recursive)
+            # plugin:// directories come from JSON-RPC, not the VFS: low fan-out
+            # and a different failure mode, so they stay on the serial path
+            if WALK_WORKERS > 1 and not folder.startswith('plugin://'):
+                images += _scan_parallel(folder, excludes, extensions, recursive)
+            else:
+                images += _scan(folder, excludes, extensions, recursive)
         else:
             log('folder does not exist')
     return images
