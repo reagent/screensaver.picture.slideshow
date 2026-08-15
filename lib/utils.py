@@ -5,6 +5,7 @@ import json
 import random
 import re
 import sys
+import time
 import urllib.parse
 import xbmc
 import xbmcvfs
@@ -218,6 +219,7 @@ def walk(path):
     # settings, excludes and the decodable extension set do not vary per
     # folder. Reading them once per scan instead of once per directory is what
     # makes a deep tree over SMB bearable.
+    started = time.time()
     excludes = [re.compile(expr) for expr in get_excludes()]
     extensions = _image_extensions()
     recursive = xbmcaddon.Addon().getSettingBool('recursive')
@@ -232,4 +234,6 @@ def walk(path):
                 images += _scan(folder, excludes, extensions, recursive)
         else:
             log('folder does not exist')
+    # the number to watch in kodi.log when judging a scan on real hardware
+    log('scan finished: %i images in %.2fs (%i workers)' % (len(images), time.time() - started, WALK_WORKERS))
     return images
