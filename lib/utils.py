@@ -58,13 +58,18 @@ def create_cache(path, hexfile, randomize, current_images=None):
             else:
                 random.seed()
                 random.shuffle(images)
-        # create cache file
-        try:
-            cache = xbmcvfs.File(CACHEFILE % hexfile, 'w')
-            json.dump(images, cache)
-            cache.close()
-        except:
-            log('failed to save cachefile')
+        save_cache(images, hexfile)
+
+def save_cache(images, hexfile):
+    # create cache file
+    if not xbmcvfs.exists(CACHEFOLDER):
+        xbmcvfs.mkdir(CACHEFOLDER)
+    try:
+        cache = xbmcvfs.File(CACHEFILE % hexfile, 'w')
+        json.dump(images, cache)
+        cache.close()
+    except:
+        log('failed to save cachefile')
 
 def get_excludes():
     regexes = []
