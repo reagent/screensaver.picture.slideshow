@@ -10,6 +10,8 @@ sys.modules['xbmc'] = fakes.xbmc
 sys.modules['xbmcvfs'] = fakes.xbmcvfs
 sys.modules['xbmcaddon'] = fakes.xbmcaddon
 sys.modules['xbmcgui'] = fakes.xbmcgui
+sys.modules['exifread'] = fakes.exifread
+sys.modules['iptcinfo3'] = fakes.iptcinfo3
 
 from lib import utils as _utils  # noqa: E402
 

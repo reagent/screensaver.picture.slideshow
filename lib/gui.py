@@ -381,20 +381,35 @@ class Screensaver(xbmcgui.WindowXMLDialog):
                     break
                 self.position += 1
             self.offset = 0
-            # full cycle completed naturally: reshuffle and reload
+            # full cycle completed naturally: reshuffle for the next pass
             # only reshuffle if we weren't interrupted — stop=True means user exited mid-cycle
             if not self.stop and self.slideshow_type == 2 and self.slideshow_random:
-                hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random)
-                create_cache(self.slideshow_path, hexfile, self.slideshow_random)
-                self.items = self._read_cache(hexfile)
+                self._reshuffle_for_next_cycle()
             items = copy.deepcopy(self.items)
+
+    def _hexfile(self):
+        return checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random)
+
+    def _reshuffle_for_next_cycle(self):
+        # reshuffle what we already have rather than rescanning the folder.
+        # a rescan here runs on the display thread and freezes the slideshow for
+        # its duration; the img_update thread already refreshes the list hourly.
+        if not self.items:
+            # matches create_cache, which leaves the existing cache alone rather
+            # than replacing it with an empty list
+            return
+        random.seed()
+        random.shuffle(self.items)
+        # the resume offset is an index into the cached list, so the file has to
+        # follow the new order or resuming lands on an unrelated image
+        save_cache(self.items, self._hexfile())
 
     def _get_items(self, update=False):
         self.slideshow_type = ADDON.getSettingInt('type')
         log('slideshow type: %i' % self.slideshow_type)
         # check if we have an image folder, else fallback to video fanart
         if self.slideshow_type == 2:
-            hexfile = checksum(self.slideshow_path.encode('utf-8')) + '_' + str(self.slideshow_recursive) + '_' + str(self.slideshow_random)
+            hexfile = self._hexfile()
             log('image path: %s' % self.slideshow_path)
             log('update: %s' % update)
             if (not xbmcvfs.exists(CACHEFILE % hexfile)) or update:

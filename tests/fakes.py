@@ -191,6 +191,8 @@ xbmc.log = _log
 xbmc.getCondVisibility = _get_cond_visibility
 xbmc.executeJSONRPC = _execute_jsonrpc
 xbmc.sleep = lambda ms: None
+xbmc.getSkinDir = lambda: 'skin.estuary'
+xbmc.getRegion = lambda region: {'dateshort': 'DD/MM/YYYY'}.get(region, '')
 
 
 class _Monitor:
@@ -230,6 +232,28 @@ class _Addon:
 
 xbmcaddon = types.ModuleType('xbmcaddon')
 xbmcaddon.Addon = _Addon
+
+
+# --------------------------------------------------------------------------
+# exifread / iptcinfo3
+#
+# Kodi ships these as addons (declared in addon.xml), so they are not pip
+# dependencies and do not exist in a test venv. lib.gui imports both at module
+# level, which is enough to stop it importing at all.
+# --------------------------------------------------------------------------
+
+exifread = types.ModuleType('exifread')
+exifread.process_file = lambda fh, **kwargs: {}
+
+iptcinfo3 = types.ModuleType('iptcinfo3')
+
+
+class _IPTCInfo(dict):
+    def __init__(self, path, force=False):
+        dict.__init__(self)
+
+
+iptcinfo3.IPTCInfo = _IPTCInfo
 
 
 # --------------------------------------------------------------------------
